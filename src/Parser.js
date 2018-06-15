@@ -62,7 +62,7 @@ class Parser {
   }
   
   findParser(filename, fromPipeline) {
-    if (!fromPipeline && /[*+{}]/.test(filename) && isGlob(filename)) {
+    if (!fromPipeline && isGlob(filename)) {
       return GlobAsset;
     }
 

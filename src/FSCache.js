@@ -7,7 +7,7 @@ const logger = require('./Logger');
 const {isGlob, glob} = require('./utils/glob');
 
 // These keys can affect the output, so if they differ, the cache should not match
-const OPTION_KEYS = ['publicURL', 'minify', 'hmr', 'target'];
+const OPTION_KEYS = ['publicURL', 'minify', 'hmr', 'target', 'scopeHoist'];
 
 class FSCache {
   constructor(options) {

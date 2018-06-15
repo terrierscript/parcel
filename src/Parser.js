@@ -61,7 +61,7 @@ class Parser {
     this.extensions[ext.toLowerCase()] = parser;
   }
   
-  findParser(filename) {
+  findParser(filename, fromPipeline) {
     if (!fromPipeline && /[*+{}]/.test(filename) && isGlob(filename)) {
       return GlobAsset;
     }

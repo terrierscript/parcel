@@ -167,7 +167,9 @@ if (!args[2] || !program.commands.some(c => c.name() === args[2])) {
   args.splice(2, 0, 'serve');
 }
 
-program.parse(args);
+if (require('./ipc').isMaster) {
+  program.parse(args);
+}
 
 async function bundle(main, command) {
   // Require bundler here so the help command is fast

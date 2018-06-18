@@ -1,7 +1,6 @@
 const fs = require('./utils/fs');
 const Resolver = require('./Resolver');
 const Parser = require('./Parser');
-const WorkerFarm = require('./workerfarm/WorkerFarm');
 const Path = require('path');
 const Bundle = require('./Bundle');
 const Watcher = require('./Watcher');
@@ -21,6 +20,7 @@ const bundleReport = require('./utils/bundleReport');
 const prettifyTime = require('./utils/prettifyTime');
 const getRootDir = require('./utils/getRootDir');
 const glob = require('glob');
+const ipc = require('./ipc');
 
 /**
  * The Bundler is the main entry point. It resolves and loads assets,
@@ -56,7 +56,6 @@ class Bundler extends EventEmitter {
     this.pending = false;
     this.loadedAssets = new Map();
     this.watchedAssets = new Map();
-    this.farm = null;
     this.watcher = null;
     this.hmr = null;
     this.bundleHashes = null;
@@ -143,18 +142,10 @@ class Bundler extends EventEmitter {
       throw new Error('Asset type should be a module path.');
     }
 
-    if (this.farm) {
-      throw new Error('Asset types must be added before bundling.');
-    }
-
     this.parser.registerExtension(extension, path);
   }
 
   addPackager(type, packager) {
-    if (this.farm) {
-      throw new Error('Packagers must be added before bundling.');
-    }
-
     this.packagers.add(type, packager);
   }
 
@@ -173,10 +164,6 @@ class Bundler extends EventEmitter {
       if (typeof paths[target] !== 'string') {
         throw new Error('Bundle loader should be a string.');
       }
-    }
-
-    if (this.farm) {
-      throw new Error('Bundle loaders must be added before bundling.');
     }
 
     this.bundleLoaders[type] = paths;
@@ -322,10 +309,6 @@ class Bundler extends EventEmitter {
   }
 
   async start() {
-    if (this.farm) {
-      return;
-    }
-
     await this.loadPlugins();
 
     if (!this.options.env) {
@@ -350,14 +333,14 @@ class Bundler extends EventEmitter {
       this.options.hmrPort = await this.hmr.start(this.options);
     }
 
-    this.farm = WorkerFarm.getShared(this.options);
+    let options = Object.assign({}, this.options);
+
+    delete options.env;
+
+    ipc.init.broadcast(options);
   }
 
   stop() {
-    if (this.farm) {
-      this.farm.end();
-    }
-
     if (this.watcher) {
       this.watcher.stop();
     }
@@ -517,7 +500,7 @@ class Bundler extends EventEmitter {
     let processed = this.cache && (await this.cache.read(asset.name));
     let cacheMiss = false;
     if (!processed || asset.shouldInvalidate(processed.cacheData)) {
-      processed = await this.farm.run(asset.name, asset.id);
+      processed = await ipc.run(asset.name, asset.id);
       processed.id = asset.id;
       cacheMiss = true;
     }
